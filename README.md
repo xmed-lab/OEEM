@@ -5,7 +5,7 @@ Yi Li*, Yiduo Yu*, Yiwen Zou*, Tianqi Xiang, Xiaomeng Li, "Online Easy Example M
 ### 1. Introduction
 This framework is designed for histology images, containing two stages. The first classification stage generates pseudo-masks for pathes. And the segmentation stage uses OEEM to mitigate the noise in pseudo-masks dynamically.
 
-![framework visualization](vis.pdf)
+![framework visualization](segmentation/demo/oeem_vis.png)
 
 ### 1. Environment
 
@@ -40,6 +40,7 @@ Train classification model.
 ```
 
 Generate pseudo-mask (WSI size).
+
 ```shell
 
 ```
@@ -47,12 +48,13 @@ Generate pseudo-mask (WSI size).
 Split WSI pseudo-mask to patches for segmentation.
 
 ```shell
-bash scripts/
+
 ```
 
 Train segmentation model.
 
 ```shell
+
 ```
 
 ### 4. Testing
@@ -64,6 +66,7 @@ Test segmentation model.
 ```
 
 Merge patches and evaluation.
+
 ```shell
 
 ```
