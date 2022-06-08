@@ -20,8 +20,13 @@ git clone https://github.com/XMed-Lab/OEEM.git
 cd OEEM
 ln -s [path of patches for cls] classification/glas
 ln -s [path of patches for seg] segmentation/glas
-ln -s [path of models for cls] classification/models
+ln -s [path of models for cls] classification/modelstates
 ln -s [path of models for seg] segmentation/models
+```
+
+Install library dependencies
+```shell
+pip install -r requirements.txt
 ```
 
 Install mmsegentation.
@@ -37,13 +42,13 @@ pip install -v -e .
 Train classification model.
 
 ```shell
-
+python classification/train.py -d [gpu device no.] -m glas_11256 -resnet -dataset glas -test_every 4 -epoch 20
 ```
 
-Generate pseudo-mask (WSI size).
+Generate pseudo-mask (WSI size). The output will be in `glas_11256_best_train_pseudo_mask` folder.
 
 ```shell
-
+python classification/prepare_seg_inputs.py -d [gpu device no.] -ckpt glas_11256_best 
 ```
 
 Split WSI pseudo-mask to patches for segmentation.
