@@ -17,8 +17,8 @@ def online_cut_patches(im, im_size, stride):
     the return position (x,y) is the up left corner of the image
     Args:
         im (np.ndarray): the image for cropping
-        im_size (int, optional): the sub-image size.
-        stride (int, optional): the pixels between two sub-images.
+        im_size (int): the sub-image size.
+        stride (int): the pixels between two sub-images.
     Returns:
         (list, list): list of image reference and list of its corresponding positions
     """
@@ -146,72 +146,6 @@ def crop_validation_images(dataset_path, side_length, stride, scales, validation
             for j in range(len(scaled_im_list[i])):
                 scaled_im_list[i][j].save(f'{validation_folder_name}/crop_images/{image.split(".")[0]}/{scales[i]}/{scaled_position_list[i][j]}.png')
 
-def predict_mask(image, threshold, minimal_size):
-    """
-    given the rgb image, get the foreground mask
-
-    Args:
-        image (PIL.image): the 
-        threshold (int): (0, 255) the threshold for image in hsv format's Value channel
-        minimal_size (int): the parts smaller than minimal_sized will be removed
-
-    Returns:
-        np.ndarray: the predicted mask, same shape as `image`, 0 is background, 1 is foreground 
-    """
-    # threshold
-    image_t = np.array(image)
-    temp = cv2.cvtColor(image_t, cv2.COLOR_RGB2HSV)
-    threshold_saturation = threshold_otsu(temp[:,:,1])
-    image_t[temp[:,:,1] < threshold_saturation] = [255, 255, 255]
-    image_t[temp[:,:,1] >= threshold_saturation] = [0, 0, 0]
-    image_t[temp[:,:,2] > threshold] = [255, 255, 255]
-    image_t[temp[:,:,2] <= threshold] = [0, 0, 0]
-
-    # erode
-    erosion_size = 0
-    erosion_shape = 2
-    element = cv2.getStructuringElement(erosion_shape, (2 * erosion_size + 1, 2 * erosion_size + 1), (erosion_size, erosion_size))
-    image_e = cv2.erode(image_t, element)
-
-    # connected components filtering
-    image_c = copy.deepcopy(image_e)
-    temp = cv2.cvtColor(image_e, cv2.COLOR_RGB2GRAY)
-    temp[temp == 0] = 2  # prevent recognizing 0 as background
-    label_image = label(temp)
-    for region in regionprops(label_image):
-        # take regions with large enough areas
-        if region.area <= minimal_size:
-            image_c[label_image == region.label] = [255, 255, 255] - image_c[label_image == region.label]
-
-    # save the predict mask
-    result = image_c[:, :, 1].astype(np.uint8)
-    result[result == 0] = 1
-    result[result == 255] = 0
-    return result
-
-def get_dataset_stats(dataset_root_path):
-    imgs_path = osp(dataset_root_path, "origin_ims")
-    img_h, img_w = get_average_image_size(imgs_path)
-    means, stdevs = [], []
-    img_list = []
-    
-    for file in os.listdir(imgs_path):
-        img = Image.open(osp(imgs_path, file))
-        img = np.asarray(img.resize((img_w, img_h))) # H, W, C
-        img = img[:, :, :, None]
-        img_list.append(img)
-
-    imgs = np.concatenate(img_list, axis=3)
-    imgs = imgs.astype(np.float32) / 255.
-    
-    for i in range(3):
-        pixels = imgs[:, :, i, :].ravel()
-        means.append(np.mean(pixels))
-        stdevs.append(np.std(pixels))
-    
-    print("normMean = {}".format(means))
-    print("normStd = {}".format(stdevs))
-
 def glas_join_crops_back(cropped_cam_path: str, origin_ims_path: str, side_length: int, stride: int, is_train: bool) -> None:
     """
     merge the cropped image mask to the original image size and save in the `cropped_cam_path` folder
@@ -221,7 +155,7 @@ def glas_join_crops_back(cropped_cam_path: str, origin_ims_path: str, side_lengt
         origin_ims_path (str): the original image path
         side_length (int): the crop size
         stride (int): the step between crop images
-        is_train 
+        is_train: whether this function is performed on the training set
     """
     partial_image_list = os.listdir(cropped_cam_path)
     # make a dict to tract wich images are in a group and should be merged back

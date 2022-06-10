@@ -1,4 +1,3 @@
-
 import argparse
 import os
 from PIL import Image
@@ -10,28 +9,28 @@ from torchvision import transforms
 from tqdm import tqdm
 import torch.nn.functional as F
 from dataset import TrainingSetCAM
-import classification.network
-from classification.utils.pyutils import glas_join_crops_back, predict_mask
+import network
+from utils.pyutils import glas_join_crops_back
 import yaml
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('-batch', default=20, type=int)
     parser.add_argument('-d','--device', nargs='+', help='GPU id to use parallel', required=True, type=int)
-    parser.add_argument('-ckpt', type=str, help='the checkpoint model name')
+    parser.add_argument('-ckpt', type=str, required=True, help='the checkpoint model name')
     args = parser.parse_args()
 
     batch_size = args.batch
     devices = args.device
     ckpt = args.ckpt
 
-    with open('configuration.yml') as f:
+    with open('classification/configuration.yml') as f:
         data = yaml.safe_load(f)
     mean = data['mean']
     std = data['std']
     side_length = data['side_length']
     stride = data['stride']
-    num_class = data['num_class']
+    num_of_class = data['num_of_class']
     network_image_size = data['network_image_size']
     scales = data['scales']
 
@@ -46,12 +45,12 @@ if __name__ == '__main__':
                         transforms.Resize((network_image_size, network_image_size)),
                         transforms.ToTensor(),
                         transforms.Normalize(mean=mean, std=std)
-                ]), patch_size=side_length, stride=stride, scales=scales, num_class=num_class
+                ]), patch_size=side_length, stride=stride, scales=scales, num_class=num_of_class
     )
     dataLoader = DataLoader(dataset, batch_size=1, drop_last=False)
 
-    net_cam = classification.network.wideResNet_cam(num_class=num_class)
-    model_path = "classification/modelstates/" + ckpt + ".pth"
+    net_cam = network.wideResNet_cam(num_class=num_of_class)
+    model_path = "classification/weights/" + ckpt + ".pth"
     pretrained = torch.load(model_path)['model']
     pretrained = {k[7:]: v for k, v in pretrained.items()}
     pretrained['fc1.weight'] = pretrained['fc1.weight'].unsqueeze(-1).unsqueeze(-1).to(torch.float64)
@@ -75,7 +74,7 @@ if __name__ == '__main__':
             if majority_vote:
                 ensemble_cam = []
             else:
-                ensemble_cam = np.zeros((num_class, w, h))
+                ensemble_cam = np.zeros((num_of_class, w, h))
 
             # get the prediction for each pixel in each scale
             for s in range(len(scales)):
@@ -102,7 +101,7 @@ if __name__ == '__main__':
                     cam_list.append(cam_scores)
                 cam_list = np.concatenate(cam_list)
 
-                sum_cam = np.zeros((num_class, w_, h_))
+                sum_cam = np.zeros((num_of_class, w_, h_))
                 sum_counter = np.zeros_like(sum_cam)
             
                 for k in range(cam_list.shape[0]):
@@ -118,7 +117,7 @@ if __name__ == '__main__':
                 # use the image-level label to eliminate impossible pixel classes
                 if majority_vote:
                     if eliminate_noise:
-                        for k in range(num_class):
+                        for k in range(num_of_class):
                             if big_label[1-k] == 0:
                                 norm_cam[k, :, :] = -np.inf
                 
@@ -132,7 +131,7 @@ if __name__ == '__main__':
                 result_label = mode(ensemble_cam, axis=0)[0]
             else:
                 if eliminate_noise:
-                    for k in range(num_class):
+                    for k in range(num_of_class):
                         if big_label[1-k] == 0:
                             ensemble_cam[k, :, :] = -np.inf
                             

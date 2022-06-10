@@ -4,13 +4,13 @@ from tqdm import tqdm
 import matplotlib.pyplot as plt
 import os
 from torchvision import transforms
-import classification.network
-import classification.dataset
+import network
+import dataset
 from torch.utils.data import DataLoader
-from classification.utils.metric import get_overall_valid_score
-from classification.utils.generate_CAM import generate_validation_cam
-from classification.utils.pyutils import crop_validation_images
-from classification.utils.torchutils import PolyOptimizer
+from utils.metric import get_overall_valid_score
+from utils.generate_CAM import generate_validation_cam
+from utils.pyutils import crop_validation_images
+from utils.torchutils import PolyOptimizer
 import yaml
 
 if __name__ == '__main__':
@@ -20,8 +20,7 @@ if __name__ == '__main__':
     parser.add_argument('-lr', default=0.01, type=float)
     parser.add_argument('-test_every', default=5, type=int, help="how often to test a model while training")
     parser.add_argument('-d','--device', nargs='+', help='GPU id to use parallel', required=True, type=int)
-    parser.add_argument('-m', type=str, help='the save model name')
-    parser.add_argument('-ckpt', type=str, help='the checkpoint model name')
+    parser.add_argument('-m', type=str, required=True, help='the save model name')
     args = parser.parse_args()
 
     batch_size = args.batch
@@ -30,19 +29,17 @@ if __name__ == '__main__':
     test_every = args.test_every
     devices = args.device
     model_name = args.m
-    ckpt = args.ckpt
 
-    with open('configuration.yml') as f:
+    with open('classification/configuration.yml') as f:
         config = yaml.safe_load(f)
     mean = config['mean']
     std = config['std']
-    num_class = config['num_class']
     network_image_size = config['network_image_size']
     scales = config['scales']
 
-    if not os.path.exists('./classification/modelstates'):
-        os.mkdir('./classification/modelstates')
-    if not os.path.exists('/.classification/result'):
+    if not os.path.exists('./classification/weights'):
+        os.mkdir('./classification/weights')
+    if not os.path.exists('./classification/result'):
         os.mkdir('./classification/result')
     
 
@@ -51,16 +48,13 @@ if __name__ == '__main__':
     validation_mask_path = 'classification/glas/2.validation/mask'
     if not os.path.exists(validation_folder_name):
         os.mkdir(validation_folder_name)
-    print('crop validation set images ...')
-    crop_validation_images(validation_dataset_path, network_image_size, network_image_size, scales, validation_folder_name)
-    print('cropping finishes!')
+        print('crop validation set images ...')
+        crop_validation_images(validation_dataset_path, network_image_size, network_image_size, scales, validation_folder_name)
+        print('cropping finishes!')
 
-    # EXCLUSIVELY FOR TRAINING
-    if model_name == None:
-        raise Exception("Model name is not provided for the traning phase!")
     # load model
     resnet38_path = "classification/weights/res38d.pth"
-    net = classification.network.wideResNet()
+    net = network.wideResNet()
     net.load_state_dict(torch.load(resnet38_path), strict=False)
     
     net = torch.nn.DataParallel(net, device_ids=devices).cuda()
@@ -75,7 +69,7 @@ if __name__ == '__main__':
 
     # load training dataset
     data_path_name = f'classification/glas/1.training/img'
-    TrainDataset = classification.dataset.OriginPatchesDataset(data_path_name=data_path_name, transform=train_transform)
+    TrainDataset = dataset.OriginPatchesDataset(data_path_name=data_path_name, transform=train_transform)
     print("train Dataset", len(TrainDataset))
     TrainDatasampler = torch.utils.data.RandomSampler(TrainDataset)
     TrainDataloader = DataLoader(TrainDataset, batch_size=batch_size, num_workers=4, sampler=TrainDatasampler, drop_last=True)
@@ -96,7 +90,7 @@ if __name__ == '__main__':
         running_loss = 0.
         net.train()
 
-        for img, label, area in tqdm(TrainDataloader):
+        for img, label in tqdm(TrainDataloader):
             count += 1
             img = img.cuda()
             label = label.cuda()
@@ -114,7 +108,7 @@ if __name__ == '__main__':
 
         valid_iou = 0
         if test_every != 0 and ((i + 1) % test_every == 0 or (i + 1) == epochs):
-            net_cam = classification.network.wideResNet_cam()
+            net_cam = network.wideResNet_cam()
             pretrained = net.state_dict()
             pretrained = {k[7:]: v for k, v in pretrained.items()}
             pretrained['fc1.weight'] = pretrained['fc1.weight'].unsqueeze(-1).unsqueeze(-1).to(torch.float64)
@@ -133,11 +127,11 @@ if __name__ == '__main__':
             if valid_iou > best_val:
                 print("Updating the best model..........................................")
                 best_val = valid_iou
-                torch.save({"model": net.state_dict(), 'optimizer': optimizer.state_dict()}, "./classification/modelstates/" + model_name + "_best.pth")
+                torch.save({"model": net.state_dict(), 'optimizer': optimizer.state_dict()}, "./classification/weights/" + model_name + "_best.pth")
         
         print(f'Epoch [{i+1}/{epochs}], Train Loss: {train_loss:.4f}, Valid mIOU: {valid_iou:.4f}, Valid Dice: {2 * valid_iou / (1 + valid_iou):.4f}')
 
-    torch.save({"model": net.state_dict(), 'optimizer': optimizer.state_dict()}, "./classification/modelstates/" + "_" + model_name + "_last.pth")
+    torch.save({"model": net.state_dict(), 'optimizer': optimizer.state_dict()}, "./classification/weights/" + model_name + "_last.pth")
 
     plt.figure(1)
     plt.plot(loss_t)

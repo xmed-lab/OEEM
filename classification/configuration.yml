@@ -1,7 +1,8 @@
-# train, validation setting for each model
+# train, validation settings
 ---
 side_length: 112
 stride: 56
+num_of_class: 2
 mean: [0.787, 0.511, 0.785]
 std: [0.167, 0.248, 0.131]
 scales: [1, 1.25, 1.5, 1.75, 2]

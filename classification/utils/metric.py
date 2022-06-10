@@ -2,27 +2,8 @@ import os
 from PIL import Image
 import numpy as np
 from multiprocessing import Array, Process
-from classification.utils.pyutils import chunks
+from utils.pyutils import chunks
 import random
-
-def calculate_IOU(pred, real):
-    """
-    this test is on a single image, and the number of clusters are the number in groundtruth
-    thus, if prediction has three classes but gt has 2, mean will only divide by 2
-
-    Returns:
-        float: mIOU score
-    """
-    score = 0
-    # num_cluster = 0
-    for i in [0, 1, 2]:
-        if i in pred:
-            # num_cluster += 1
-            intersection = sum(np.logical_and(pred == i, real == i))
-            union = sum(np.logical_or(pred == i, real == i))
-            score += intersection / union
-    num_cluster = len(np.unique(real))
-    return score / num_cluster
 
 def calculate_F1(pred_path, gt_path, numofclass):
     TPs = [0] * numofclass
@@ -40,28 +21,6 @@ def calculate_F1(pred_path, gt_path, numofclass):
     f1_score = TPs / (TPs + (FPs + FNs)/2 + 1e-7)
     f1_score = sum(f1_score) / numofclass
     return f1_score
-
-
-def get_mIOU(mask, groundtruth, prediction):
-    """
-    in this mIOU calculation, the mask will be excluded
-    """
-    prediction = np.reshape(prediction, (-1))
-    groundtruth = groundtruth.reshape(-1)
-    mask = mask.reshape(-1)
-    length = len(prediction)
-
-    after_mask_pred = []
-    after_mask_true = []
-    for i in range(length):
-        if mask[i] == 0:
-            after_mask_true.append(groundtruth[i])
-            after_mask_pred.append(prediction[i])
-
-    after_mask_pred = np.array(after_mask_pred)
-    after_mask_true = np.array(after_mask_true)
-    score = calculate_IOU(after_mask_pred, after_mask_true)
-    return score
 
 
 def get_overall_valid_score(pred_image_path, groundtruth_path, num_workers=5, num_class=2):

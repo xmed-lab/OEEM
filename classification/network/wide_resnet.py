@@ -100,22 +100,6 @@ class ResBlock_bot(nn.Module):
     def __call__(self, x, get_x_bn_relu=False):
         return self.forward(x, get_x_bn_relu=get_x_bn_relu)
 
-class Normalize():
-    def __init__(self, mean = (0.485, 0.456, 0.406), std = (0.229, 0.224, 0.225)):
-
-        self.mean = mean
-        self.std = std
-
-    def __call__(self, img):
-        imgarr = np.asarray(img)
-        proc_img = np.empty_like(imgarr, np.float32)
-
-        proc_img[..., 0] = (imgarr[..., 0] / 255. - self.mean[0]) / self.std[0]
-        proc_img[..., 1] = (imgarr[..., 1] / 255. - self.mean[1]) / self.std[1]
-        proc_img[..., 2] = (imgarr[..., 2] / 255. - self.mean[2]) / self.std[2]
-
-        return proc_img
-
 class wideResNet(nn.Module):
     def __init__(self, num_class=2):
         super(wideResNet, self).__init__()
@@ -147,14 +131,9 @@ class wideResNet(nn.Module):
 
         self.not_training = [self.conv1a]
 
-        self.normalize = Normalize()
         self.pool = nn.AdaptiveAvgPool2d((1, 1))
 
         self.fc1 = nn.Linear(5632, num_class)
-
-        if self.regression_activate:
-            self.fcregression = nn.Linear(5632, num_class)
-            self.soft = nn.Softmax(dim=0)
 
         return
 

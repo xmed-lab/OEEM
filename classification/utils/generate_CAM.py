@@ -5,7 +5,7 @@ from torchvision import transforms
 import torch.nn.functional as F
 import numpy as np
 from torch.utils.data import DataLoader
-import classification.dataset
+import dataset
 import torch
 import os
 from scipy.stats import mode
@@ -29,7 +29,6 @@ def generate_validation_cam(net, config, batch_size, dataset_path, validation_fo
     side_length = config['network_image_size']
     mean = config['mean']
     std = config['std']
-    num_class = config['num_class']
     network_image_size = config['network_image_size']
     scales = config['scales']
 
@@ -46,12 +45,12 @@ def generate_validation_cam(net, config, batch_size, dataset_path, validation_fo
         if majority_vote:
             ensemble_cam = []
         else:
-            ensemble_cam = np.zeros((num_class, w, h))
+            ensemble_cam = np.zeros((2, w, h))
         
         for scale in scales:
             image_per_scale_path = crop_image_path + image_name + '/' + str(scale)
             scale = float(scale)
-            offlineDataset = classification.dataset.OfflineDataset(image_per_scale_path, transform=transforms.Compose([
+            offlineDataset = dataset.OfflineDataset(image_per_scale_path, transform=transforms.Compose([
                     transforms.Resize((network_image_size, network_image_size)),
                     transforms.ToTensor(),
                     transforms.Normalize(mean=mean, std=std)
@@ -78,7 +77,7 @@ def generate_validation_cam(net, config, batch_size, dataset_path, validation_fo
                     position_list.append(positions.numpy())
                 cam_list = np.concatenate(cam_list)
                 position_list = np.concatenate(position_list)
-                sum_cam = np.zeros((num_class, w_, h_))
+                sum_cam = np.zeros((2, w_, h_))
                 sum_counter = np.zeros_like(sum_cam)
                 
                 for k in range(cam_list.shape[0]):
@@ -96,7 +95,7 @@ def generate_validation_cam(net, config, batch_size, dataset_path, validation_fo
                         with open(f'{validation_folder_name}/{label_path}') as f:
                             big_labels = json.load(f)
                         big_label = big_labels[f'{image_name}.png']        
-                        for k in range(num_class):
+                        for k in range(2):
                             if big_label[k] == 0:
                                 norm_cam[k, :, :] = -np.inf
                 
@@ -113,7 +112,7 @@ def generate_validation_cam(net, config, batch_size, dataset_path, validation_fo
                 with open(f'{validation_folder_name}/{label_path}') as f:
                     big_labels = json.load(f)
                 big_label = big_labels[f'{image_name}.png']        
-                for k in range(num_class):
+                for k in range(2):
                     if big_label[k] == 0:
                         ensemble_cam[k, :, :] = -np.inf
                         
