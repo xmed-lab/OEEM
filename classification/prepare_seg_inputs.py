@@ -11,6 +11,7 @@ from dataset import TrainingSetCAM
 import network
 from utils.pyutils import glas_join_crops_back
 import yaml
+import importlib
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -47,7 +48,7 @@ if __name__ == '__main__':
     )
     dataLoader = DataLoader(dataset, batch_size=1, drop_last=False)
 
-    net_cam = network.wideResNet_cam(num_class=num_of_class)
+    net_cam = getattr(importlib.import_module("network.wide_resnet"), 'wideResNet')()
     model_path = "classification/weights/" + ckpt + ".pth"
     pretrained = torch.load(model_path)['model']
     pretrained = {k[7:]: v for k, v in pretrained.items()}
@@ -92,7 +93,7 @@ if __name__ == '__main__':
 
                 cam_list = []
                 for ims in im_list:
-                    cam_scores = net_cam(ims.cuda())
+                    cam_scores = net_cam.forward_cam(ims.cuda())
                     cam_scores = F.interpolate(cam_scores, (interpolatex, interpolatey), mode='bilinear', align_corners=False).detach().cpu().numpy()
                     cam_list.append(cam_scores)
                 cam_list = np.concatenate(cam_list)

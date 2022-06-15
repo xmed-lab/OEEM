@@ -66,7 +66,7 @@ def generate_validation_cam(net, config, batch_size, dataset_path, validation_fo
                 cam_list = []
                 position_list = []
                 for ims, positions in offlineDataloader:
-                    cam_scores = net(ims.cuda())
+                    cam_scores = net.foward_cam(ims.cuda())
                     cam_scores = F.interpolate(cam_scores, (interpolatex, interpolatey), mode='bilinear', align_corners=False).detach().cpu().numpy()
                     cam_list.append(cam_scores)
                     position_list.append(positions.numpy())
