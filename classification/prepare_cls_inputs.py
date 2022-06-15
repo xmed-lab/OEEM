@@ -85,8 +85,8 @@ def prepare_glas(side_length: int, stride: int, scales: List[int], network_image
                 has_tumor = 1
             if np.sum(crop_mask == 0) / crop_mask.size > 0.05:
                 has_normal = 1
-            Image.fromarray(crop_im).save(os.path.join(destination, f'train_{i}_{j}-[{has_tumor}, {has_normal}].png'))
-            summary.append((has_tumor, has_normal))
+            Image.fromarray(crop_im).save(os.path.join(destination, f'train_{i}_{j}-[{has_normal}, {has_tumor}].png'))
+            summary.append((has_normal, has_tumor))
     
     print(Counter(summary))
     print('finish processing training images!')
@@ -107,12 +107,10 @@ def prepare_glas(side_length: int, stride: int, scales: List[int], network_image
         for mask_name in os.listdir(mask_folder_path):
             mask = np.asarray(Image.open(os.path.join(mask_folder_path, mask_name))).copy()
             # this three steps, convert tumor to 0, background to 2
-            mask[mask > 0] = 3
-            mask[mask == 0] = 1
-            mask[mask == 3] = 0
-            palette = [(0, 64, 128), (64, 128, 0), (243, 152, 0), (255, 255, 255)]
+            mask[mask > 0] = 1
+            palette = [(64, 128, 0), (0, 64, 128)]
             with open(os.path.join(destination, f'{mask_name.split(".")[0]}.png'), 'wb') as f:
-                w = png.Writer(mask.shape[1], mask.shape[0],palette=palette, bitdepth=8)
+                w = png.Writer(mask.shape[1], mask.shape[0], palette=palette, bitdepth=8)
                 w.write(f, mask.astype(np.uint8))
 
     validation_mask_path = 'Dataset_glas/2.validation/origin_mask'

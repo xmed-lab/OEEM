@@ -1,3 +1,4 @@
+from re import X
 import torch
 from torch import nn
 import numpy as np
@@ -133,11 +134,13 @@ class wideResNet(nn.Module):
 
         self.pool = nn.AdaptiveAvgPool2d((1, 1))
 
-        self.fc1 = nn.Linear(5632, num_class)
+        self.fc_cls = nn.Linear(5632, num_class)
+
+        self.fc_cam = torch.nn.Conv2d(5632, num_class, 1, stride=1, padding=0, bias=True)
 
         return
 
-    def forward(self, x):
+    def _shared_forward(self, x):
 
         x = self.conv1a(x)
 
@@ -165,12 +168,22 @@ class wideResNet(nn.Module):
         x = self.b7(x)
         conv6 = F.relu(self.bn7(x))
         result = torch.cat([conv4, conv5, conv6], dim=1)
-        result = self.pool(result)
-        result = torch.flatten(result, start_dim=1)
-        classification_result = self.fc1(result)
 
-        return classification_result
+        return result
 
+    def forward(self, x):
+        x = self._shared_forward(x)
+        x = self.pool(x)
+        x = torch.flatten(x, start_dim=1)
+        cls_result = self.fc_cls(x)
+
+        return cls_result
+
+    def forward_cam(self, x):
+        x = self._shared_forward(x)
+        x = self.fc_cam(x)
+
+        return x
 
     def train(self, mode=True):
 

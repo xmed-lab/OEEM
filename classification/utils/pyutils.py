@@ -186,7 +186,7 @@ def glas_join_crops_back(cropped_cam_path: str, origin_ims_path: str, side_lengt
             sum_counter[position[0]:position[0]+side_length, position[1]:position[1]+side_length] += 1
 
         complete_mask = np.rint(complete_mask / sum_counter)
-        palette = [(0, 64, 128), (243, 152, 0)]
+        palette = [(64, 128, 0), (0, 64, 128)]
         with open(os.path.join(cropped_cam_path, f'{origin_im.split(".")[0]}.png'), 'wb') as f:
             w = png.Writer(complete_mask.shape[1], complete_mask.shape[0], palette=palette, bitdepth=8)
             w.write(f, complete_mask.astype(np.uint8))

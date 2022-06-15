@@ -4,7 +4,6 @@ from tqdm import tqdm
 import matplotlib.pyplot as plt
 import os
 from torchvision import transforms
-import network
 import dataset
 from torch.utils.data import DataLoader
 from utils.metric import get_overall_valid_score
@@ -12,6 +11,7 @@ from utils.generate_CAM import generate_validation_cam
 from utils.pyutils import crop_validation_images
 from utils.torchutils import PolyOptimizer
 import yaml
+import importlib
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -54,7 +54,9 @@ if __name__ == '__main__':
 
     # load model
     resnet38_path = "classification/weights/res38d.pth"
-    net = network.wideResNet()
+    
+    net = getattr(importlib.import_module("network.wide_resnet"), 'wideResNet')()
+    # net = network.wideResNet()
     net.load_state_dict(torch.load(resnet38_path), strict=False)
     
     net = torch.nn.DataParallel(net, device_ids=devices).cuda()
@@ -108,13 +110,15 @@ if __name__ == '__main__':
 
         valid_iou = 0
         if test_every != 0 and ((i + 1) % test_every == 0 or (i + 1) == epochs):
-            net_cam = network.wideResNet_cam()
+            # net_cam = network.wideResNet_cam()
+            net_cam = getattr(importlib.import_module("network.wide_resnet"), 'wideResNet')()
             pretrained = net.state_dict()
             pretrained = {k[7:]: v for k, v in pretrained.items()}
-            pretrained['fc1.weight'] = pretrained['fc1.weight'].unsqueeze(-1).unsqueeze(-1).to(torch.float64)
-            if 'fcregression.weight' in pretrained: 
-                del pretrained['fcregression.weight']
-                del pretrained['fcregression.bias']
+            pretrained['fc_cam.weight'] = pretrained['fc_cls.weight'].unsqueeze(-1).unsqueeze(-1).to(torch.float64)
+            pretrained['fc_cam.bias'] = pretrained['fc_cls.bias']
+            # del pretrained['fc_cls.weight']
+            # del pretrained['fc_cls.bias']
+
             net_cam.load_state_dict(pretrained)
             net_cam = torch.nn.DataParallel(net_cam, device_ids=devices).cuda()
 
@@ -142,8 +146,8 @@ if __name__ == '__main__':
     plt.close()
 
     plt.figure(2)
-    plt.plot(iou_v)
-    plt.ylabel('accuracy')
+    plt.plot(list(range(test_every, epochs + 1, test_every)), iou_v)
+    plt.ylabel('mIoU')
     plt.xlabel('epochs')
-    plt.title('valid accuracy')
+    plt.title('valid mIoU')
     plt.savefig('./classification/result/valid_iou.png')

@@ -2,7 +2,6 @@ import argparse
 import os
 from PIL import Image
 import numpy as np
-from scipy.stats.stats import mode
 import torch
 from torch.utils.data.dataloader import DataLoader
 from torchvision import transforms
@@ -12,6 +11,7 @@ from dataset import TrainingSetCAM
 import network
 from utils.pyutils import glas_join_crops_back
 import yaml
+import importlib
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -39,7 +39,6 @@ if __name__ == '__main__':
         os.mkdir(train_pseudo_mask_path)
 
     data_path_name = f'classification/glas/1.training/img'
-    majority_vote = False
     
     dataset = TrainingSetCAM(data_path_name=data_path_name, transform=transforms.Compose([
                         transforms.Resize((network_image_size, network_image_size)),
@@ -49,11 +48,12 @@ if __name__ == '__main__':
     )
     dataLoader = DataLoader(dataset, batch_size=1, drop_last=False)
 
-    net_cam = network.wideResNet_cam(num_class=num_of_class)
+    net_cam = getattr(importlib.import_module("network.wide_resnet"), 'wideResNet')()
     model_path = "classification/weights/" + ckpt + ".pth"
     pretrained = torch.load(model_path)['model']
     pretrained = {k[7:]: v for k, v in pretrained.items()}
-    pretrained['fc1.weight'] = pretrained['fc1.weight'].unsqueeze(-1).unsqueeze(-1).to(torch.float64)
+    pretrained['fc_cam.weight'] = pretrained['fc_cls.weight'].unsqueeze(-1).unsqueeze(-1).to(torch.float64)
+    pretrained['fc_cam.bias'] = pretrained['fc_cls.bias']
     net_cam.load_state_dict(pretrained)
 
     net_cam.eval()
@@ -71,10 +71,8 @@ if __name__ == '__main__':
             orig_img = np.asarray(Image.open(f'{data_path_name}/{im_name[0]}'))
             w, h, _ = orig_img.shape
 
-            if majority_vote:
-                ensemble_cam = []
-            else:
-                ensemble_cam = np.zeros((num_of_class, w, h))
+
+            ensemble_cam = np.zeros((num_of_class, w, h))
 
             # get the prediction for each pixel in each scale
             for s in range(len(scales)):
@@ -96,7 +94,7 @@ if __name__ == '__main__':
 
                 cam_list = []
                 for ims in im_list:
-                    cam_scores = net_cam(ims.cuda())
+                    cam_scores = net_cam.module.forward_cam(ims.cuda())
                     cam_scores = F.interpolate(cam_scores, (interpolatex, interpolatey), mode='bilinear', align_corners=False).detach().cpu().numpy()
                     cam_list.append(cam_scores)
                 cam_list = np.concatenate(cam_list)
@@ -115,27 +113,15 @@ if __name__ == '__main__':
                 norm_cam = F.interpolate(torch.unsqueeze(torch.tensor(norm_cam),0), (w, h), mode='bilinear', align_corners=False).detach().cpu().numpy()[0]
                 
                 # use the image-level label to eliminate impossible pixel classes
-                if majority_vote:
-                    if eliminate_noise:
-                        for k in range(num_of_class):
-                            if big_label[1-k] == 0:
-                                norm_cam[k, :, :] = -np.inf
-                
-                    norm_cam = np.argmax(norm_cam, axis=0)        
-                    ensemble_cam.append(norm_cam)
-                else:
-                    ensemble_cam += norm_cam
+                ensemble_cam += norm_cam
             
-            if majority_vote:
-                ensemble_cam = np.stack(ensemble_cam, axis=0)
-                result_label = mode(ensemble_cam, axis=0)[0]
-            else:
-                if eliminate_noise:
-                    for k in range(num_of_class):
-                        if big_label[1-k] == 0:
-                            ensemble_cam[k, :, :] = -np.inf
-                            
-                result_label = ensemble_cam.argmax(axis=0)
+
+            if eliminate_noise:
+                for k in range(num_of_class):
+                    if big_label[k] == 0:
+                        ensemble_cam[k, :, :] = -np.inf
+                        
+            result_label = ensemble_cam.argmax(axis=0)
             
             np.save(f'{train_pseudo_mask_path}/{im_name[0].split(".")[0]}.npy', result_label)
 
