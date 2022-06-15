@@ -8,10 +8,9 @@ from torch.utils.data import DataLoader
 import dataset
 import torch
 import os
-from scipy.stats import mode
 
 
-def generate_validation_cam(net, config, batch_size, dataset_path, validation_folder_name, model_name, elimate_noise=False, label_path=None, majority_vote=False):
+def generate_validation_cam(net, config, batch_size, dataset_path, validation_folder_name, model_name, elimate_noise=False, label_path=None):
     """
     Generate the class activation map for the validation set and evaluate.
 
@@ -24,7 +23,6 @@ def generate_validation_cam(net, config, batch_size, dataset_path, validation_fo
         model_name (str): the name for this cam_output model
         elimate_noise (bool, optional): use image-level label to cancel some of the noise. Defaults to False.
         label_path (str, optional): if `eliminate_noise` is True, input the labels path. Defaults to None.
-        majority_vote (bool, optional): use the majortity vote strategy for model ensemble. Defaults to False, then we simply add the cams from different scales together and do one argmax operation at last.
     """
     side_length = config['network_image_size']
     mean = config['mean']
@@ -42,10 +40,7 @@ def generate_validation_cam(net, config, batch_size, dataset_path, validation_fo
     for image_name in tqdm(image_name_list):
         orig_img = np.asarray(Image.open(f'{dataset_path}/{image_name}.{extension_name}'))
         w, h, _ = orig_img.shape
-        if majority_vote:
-            ensemble_cam = []
-        else:
-            ensemble_cam = np.zeros((2, w, h))
+        ensemble_cam = np.zeros((2, w, h))
         
         for scale in scales:
             image_per_scale_path = crop_image_path + image_name + '/' + str(scale)
@@ -90,33 +85,17 @@ def generate_validation_cam(net, config, batch_size, dataset_path, validation_fo
                 norm_cam = F.interpolate(torch.unsqueeze(torch.tensor(norm_cam),0), (w, h), mode='bilinear', align_corners=False).detach().cpu().numpy()[0]
 
                 # Use the image-level label to eliminate impossible pixel classes
-                if majority_vote:
-                    if elimate_noise:
-                        with open(f'{validation_folder_name}/{label_path}') as f:
-                            big_labels = json.load(f)
-                        big_label = big_labels[f'{image_name}.png']        
-                        for k in range(2):
-                            if big_label[k] == 0:
-                                norm_cam[k, :, :] = -np.inf
-                
-                    norm_cam = np.argmax(norm_cam, axis=0)        
-                    ensemble_cam.append(norm_cam)
-                else:
-                    ensemble_cam += norm_cam                
-        
-        if majority_vote:
-            ensemble_cam = np.stack(ensemble_cam, axis=0)
-            result_label = mode(ensemble_cam, axis=0)[0]
-        else:
-            if elimate_noise:
-                with open(f'{validation_folder_name}/{label_path}') as f:
-                    big_labels = json.load(f)
-                big_label = big_labels[f'{image_name}.png']        
-                for k in range(2):
-                    if big_label[k] == 0:
-                        ensemble_cam[k, :, :] = -np.inf
-                        
-            result_label = ensemble_cam.argmax(axis=0)
+                ensemble_cam += norm_cam                
+
+        if elimate_noise:
+            with open(f'{validation_folder_name}/{label_path}') as f:
+                big_labels = json.load(f)
+            big_label = big_labels[f'{image_name}.png']        
+            for k in range(2):
+                if big_label[k] == 0:
+                    ensemble_cam[k, :, :] = -np.inf
+                    
+        result_label = ensemble_cam.argmax(axis=0)
         if not os.path.exists(f'{validation_folder_name}/{model_name}'):
             os.mkdir(f'{validation_folder_name}/{model_name}')
         np.save(f'{validation_folder_name}/{model_name}/{image_name}.npy', result_label)
