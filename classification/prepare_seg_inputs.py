@@ -52,7 +52,8 @@ if __name__ == '__main__':
     model_path = "classification/weights/" + ckpt + ".pth"
     pretrained = torch.load(model_path)['model']
     pretrained = {k[7:]: v for k, v in pretrained.items()}
-    pretrained['fc1.weight'] = pretrained['fc1.weight'].unsqueeze(-1).unsqueeze(-1).to(torch.float64)
+    pretrained['fc_cam.weight'] = pretrained['fc_cls.weight'].unsqueeze(-1).unsqueeze(-1).to(torch.float64)
+    pretrained['fc_cam.bias'] = pretrained['fc_cls.bias']
     net_cam.load_state_dict(pretrained)
 
     net_cam.eval()
@@ -93,7 +94,7 @@ if __name__ == '__main__':
 
                 cam_list = []
                 for ims in im_list:
-                    cam_scores = net_cam.forward_cam(ims.cuda())
+                    cam_scores = net_cam.module.forward_cam(ims.cuda())
                     cam_scores = F.interpolate(cam_scores, (interpolatex, interpolatey), mode='bilinear', align_corners=False).detach().cpu().numpy()
                     cam_list.append(cam_scores)
                 cam_list = np.concatenate(cam_list)
