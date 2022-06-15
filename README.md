@@ -14,14 +14,14 @@ This code has been tested with Python 3.7, PyTorch 1.10.2, CUDA 11.3 mmseg 0.8.0
 
 ### 2. Preparation
 
-Download pretrained [models]() and [dataset](), then link to codes.
+Download resources (dataset, weights), then link to codes.
 ```shell
 git clone https://github.com/XMed-Lab/OEEM.git
 cd OEEM
-ln -s [path of patches for cls] classification/glas
-ln -s [path of patches for seg] segmentation/glas
-ln -s [path of models for cls] classification/weights
-ln -s [path of models for seg] segmentation/models
+ln -s OEEM_resources/glas_cls classification/glas
+ln -s OEEM_resources/glas_seg segmentation/glas
+ln -s OEEM_resources/weights classification/weights
+ln -s OEEM_resources/weights segmentation/weights
 ```
 
 Install library dependencies
@@ -42,25 +42,26 @@ pip install -v -e .
 Train classification model.
 
 ```shell
-python classification/train.py -d [gpu device no.] -m [model_name]
+python classification/train.py -d 0 -m res38d
 ```
 
 Generate pseudo-mask (WSI size). The output will be in `[model_name]_best_train_pseudo_mask` folder.
 
 ```shell
-python classification/prepare_seg_inputs.py -d [gpu device no.] -ckpt [best_model_name]
+python classification/prepare_seg_inputs.py -d 0 -ckpt res38d_best
 ```
 
 Split WSI pseudo-mask to patches for segmentation.
 
 ```shell
-
+python segmentation/tools/crop_img_and_gt.py segmentation/glas/images classification/res38d_best_train_pseudo_mask segmentation/glas
 ```
 
 Train segmentation model.
 
 ```shell
-
+cd segmentation
+bash tools/dist_train.sh configs/pspnet_oeem/pspnet_wres38-d8_10k_histo.py 1 runs/oeem
 ```
 
 ### 4. Testing
@@ -68,13 +69,15 @@ Train segmentation model.
 Test segmentation model.
 
 ```shell
-
+cd segmentation
+bash tools/dist_test.sh configs/pspnet_oeem/pspnet_wres38-d8_10k_histo_test.py runs/oeem/[name of best ckpt] 1
 ```
 
 Merge patches and evaluation.
 
 ```shell
-
+python tools/merge_patches.py glas/test_patches glas/test_wsi 2
+python tools/count_miou.py glas/test_wsi glas/gt_val 2
 ```
 
 Results compared with WSSS for natural images:
@@ -88,6 +91,16 @@ Results compared with WSSS for natural images:
 ### 5. Citation
 
 ```
+@misc{https://doi.org/10.48550/arxiv.2206.06665,
+  doi = {10.48550/ARXIV.2206.06665},
+  url = {https://arxiv.org/abs/2206.06665},
+  author = {Li, Yi and Yu, Yiduo and Zou, Yiwen and Xiang, Tianqi and Li, Xiaomeng},
+  keywords = {Computer Vision and Pattern Recognition (cs.CV), Artificial Intelligence (cs.AI), FOS: Computer and information sciences, FOS: Computer and information sciences},
+  title = {Online Easy Example Mining for Weakly-supervised Gland Segmentation from Histology Images},
+  publisher = {arXiv},
+  year = {2022},
+  copyright = {Creative Commons Attribution 4.0 International}
+}
 ```
 
 ### License

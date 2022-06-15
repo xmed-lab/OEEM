@@ -1,6 +1,6 @@
 _base_ = './pspnet_r50-d8_10k_histo.py'
 model = dict(
-    pretrained='models/res38d.pth',
+    pretrained='weights/res38d.pth',
     backbone=dict(
         type='WideRes38'),
     decode_head=dict(
@@ -35,18 +35,18 @@ data = dict(
         pipeline=train_pipeline,
         data_root=data_root,
         img_dir='img_train_256_192',
-        ann_dir='gt_train_ours_256_192',
+        ann_dir='pseudo_train_256_192',
         split='train.lst',
         ),
     val=dict(
         data_root=data_root,
-        img_dir='img_val_256_192',
-        ann_dir='gt_val_256_192',
-        split='val.lst',
+        img_dir='img_test_256_192',
+        ann_dir='gt_test_256_192',
+        split='test.lst',
         ),
     test=dict(
         data_root=data_root,
-        img_dir='img_val_256_192',
-        ann_dir='gt_val_256_192',
-        split='val.lst',
+        img_dir='img_test_256_192',
+        ann_dir='gt_test_256_192',
+        split='test.lst',
         ))

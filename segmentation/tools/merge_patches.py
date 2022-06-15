@@ -10,7 +10,7 @@ os.makedirs(outd, exist_ok=True)
 
 recorder = {}
 for f in os.listdir(ind):
-    cam = np.load(os.path.join(ind, f), allow_pickle=True)
+    cam = np.load(os.path.join(ind, f))
     fn, h, w, y1, y2, x1, x2 = f.strip('.npy').split('_')
     if fn not in recorder:
         recorder[fn] = [np.zeros((cls_num, int(h), int(w))), np.zeros((cls_num, int(h), int(w)))]

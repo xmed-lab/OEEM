@@ -34,7 +34,7 @@ if __name__ == '__main__':
     network_image_size = data['network_image_size']
     scales = data['scales']
 
-    train_pseudo_mask_path = f'{ckpt}_train_pseudo_mask'
+    train_pseudo_mask_path = 'classification/' + ckpt.replace('.pth', '') + '_train_pseudo_mask'
     if not os.path.exists(train_pseudo_mask_path):
         os.mkdir(train_pseudo_mask_path)
 
