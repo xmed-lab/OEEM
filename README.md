@@ -1,5 +1,4 @@
 ## OEEM
-Note: this code is expected to be ready at middle June.
 
 Yi Li*, Yiduo Yu*, Yiwen Zou*, Tianqi Xiang, Xiaomeng Li, "Online Easy Example Mining for Weakly-supervised Gland Segmentation from Histology Images", MICCAI 2022 (Accepted). [[paper](https://arxiv.org/abs/2206.06665)]
 
@@ -14,7 +13,7 @@ This code has been tested with Python 3.7, PyTorch 1.10.2, CUDA 11.3 mmseg 0.8.0
 
 ### 2. Preparation
 
-Download resources (dataset, weights), then link to codes.
+Download [resources](https://pan.baidu.com/s/1htY5nZacceXj_m2FlY8uXw) (dataset, weights) with extract code snb3, then link to codes.
 ```shell
 git clone https://github.com/XMed-Lab/OEEM.git
 cd OEEM
