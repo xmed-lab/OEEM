@@ -80,7 +80,7 @@ python tools/count_miou.py glas/test_wsi glas/gt_val 2
 ```
 
 Results compared with WSSS for natural images:
-| Method  | Dice   |  mIoU  |
+| Method  | mIoU   |  Dice  |
 | ---------- | :-----------:  | :-----------: |
 | SEAM | 66.11%   | 79.59%     |
 | Adv-CAM | 68.54%   | 81.33%     |
